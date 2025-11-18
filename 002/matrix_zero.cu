@@ -1,5 +1,5 @@
-#include <stdlib.h>
-#include <assert.h>
+#include <cstdlib>
+#include <cassert>
 #include <iostream>
 
 __global__ void matrixZeroKernel(float *matrix, const int width, const int height) {
@@ -10,7 +10,6 @@ __global__ void matrixZeroKernel(float *matrix, const int width, const int heigh
         matrix[y * width + x] = 0;
     }
 }
-
 
 int main(int argc, char **argv) {
     const int width = 1024;
@@ -36,6 +35,8 @@ int main(int argc, char **argv) {
     for (int i = 0; i < width * height; i++) {
         assert(h_matrix[i] == 0);
     }
+
+    std::cout << "Matrix zero test passed" << std::endl;
 
     delete[] h_matrix;
     cudaFree(d_matrix);

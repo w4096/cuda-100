@@ -4,39 +4,14 @@
 #include <chrono>
 #include <iostream>
 #include <string>
-
-#define CHECK_CUDA_ERR(err) do { \
-    if (err != cudaSuccess) { \
-        fprintf(stderr, "CUDA Error: %s at line %d\n", cudaGetErrorString(err), __LINE__); \
-        exit(EXIT_FAILURE); \
-    } \
-} while (0)
+#include "common/utils.h"
 
 __global__ void add(float *x, float *y, float *z, int n) {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
-    i *= 2;
     if (i < n) {
         z[i] = x[i] + y[i];
-        z[i+1] = x[i+1] + y[i+1];
     }
 }
-
-class TimeRecord {
- public:
-    TimeRecord(std::string name) {
-        name_ = std::move(name);
-        start_ =  std::chrono::high_resolution_clock::now();
-    }
-    ~TimeRecord() {
-        auto end = std::chrono::high_resolution_clock::now();
-        std::chrono::duration<float, std::milli> elapsed = end - start_;
-        std::cout << name_ << " cost: " << elapsed.count() << "ms" << std::endl;
-    }
-
- private:
-    std::string name_{};
-    std::chrono::high_resolution_clock::time_point start_{};
-};
 
 int main() {
     int N = 1024 * 1024 * 100;
@@ -55,7 +30,7 @@ int main() {
 
 
     {
-        TimeRecord record("cpu");
+        Timer timer("cpu");
 
         for (int i = 0; i < N; i++) {
             h_z[i] = h_x[i] + h_y[i];
@@ -77,12 +52,11 @@ int main() {
     int threads = 128;
     int blocks = (N + threads - 1) / threads;
     {
-        TimeRecord record("gpu");
+        Timer timer("gpu");
         add<<<blocks, threads>>>(d_x, d_y, d_z, N);
         CHECK_CUDA_ERR(cudaGetLastError());
         cudaDeviceSynchronize();
     }
-
 
 
     // 设备→主机数据传输（添加错误检查）
