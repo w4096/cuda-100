@@ -3,32 +3,34 @@
 #include <string>
 #include <torch/torch.h>
 
-
-__global__ void elementwise_abs(float *x, size_t N) {
-    auto idx = blockIdx.x * blockDim.x + threadIdx.x;
-    x[idx] = x[idx] > 0 ? x[idx] : -x[idx];
-}
-
-
-template<typename A, typename OP>
-__global__ void elementwise(A *a, size_t N) {
+__global__ void elementwise_abs(float* x, size_t N) {
     auto idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (idx < N) {
-        OP()(&a[idx]);
+        x[idx] = std::abs(x[idx]);
+    }
+}
+
+template<typename T, typename OP>
+__global__ void elementwise(T* x, size_t N) {
+    auto idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx < N) {
+        OP()(&x[idx]);
     }
 }
 
 template<typename T>
 class Abs {
-public:
+ public:
     __device__ __forceinline__ void operator()(T* x) const {
-        *x = std::abs(*x);
+        if (*x < 0) {
+            *x = -*x;
+        }
     }
 };
 
 template<>
 class Abs<float4> {
-public:
+ public:
     __device__ __forceinline__ void operator()(float4* x) const {
         x->x = std::abs(x->x);
         x->y = std::abs(x->y);
@@ -39,79 +41,71 @@ public:
 
 template<typename T>
 class ReLU {
-    __device__ __forceinline__ void operator()(T *x) const {
+    __device__ __forceinline__ void operator()(T* x) const {
         *x = *x < 0 ? 0 : *x;
     }
 };
 
-
 int main() {
     int N = 1024 * 1024 * 200;
 
-
-    auto a = torch::rand(N).cuda();
+    auto x = torch::rand(N).cuda();
     {
         Timer timer("torch::abs");
-        torch::abs_(a);
+        torch::abs_(x);
     }
 
-
-    a = torch::rand(N).cuda();
-    {
-        Timer timer("elementwise.abs");
-        int threads = 256;
-        int blocks = (N + threads - 1) / threads;
-
-        elementwise<float, Abs<float>><<<blocks, threads>>>(a.data_ptr<float>(), N);
-        cudaDeviceSynchronize();
-        CHECK_CUDA_ERR(cudaGetLastError());
-    }
-
-    a = torch::rand(N).cuda();
+    x = torch::rand(N).cuda();
     {
         Timer timer("elementwise_abs");
         int threads = 256;
         int blocks = (N + threads - 1) / threads;
 
-        elementwise_abs<<<blocks, threads>>>(a.data_ptr<float>(), N);
+        elementwise_abs<<<blocks, threads>>>(x.data_ptr<float>(), N);
         cudaDeviceSynchronize();
         CHECK_CUDA_ERR(cudaGetLastError());
     }
 
-    a = torch::rand(N).cuda();
+    x = torch::rand(N).cuda();
+    {
+        Timer timer("elementwise.abs");
+        int threads = 256;
+        int blocks = (N + threads - 1) / threads;
+
+        elementwise<float, Abs<float>><<<blocks, threads>>>(x.data_ptr<float>(), N);
+        cudaDeviceSynchronize();
+        CHECK_CUDA_ERR(cudaGetLastError());
+    }
+
+    x = torch::rand(N).cuda();
     {
         Timer timer("elementwise.abs.float4");
         int threads = 256;
         int blocks = (N + threads - 1) / threads;
         blocks = blocks / 4;
 
-        auto x = reinterpret_cast<float4*>(a.data_ptr<float>());
-        elementwise<float4, Abs<float4>><<<blocks, threads>>>(x, N);
+        auto float4_x = reinterpret_cast<float4*>(x.data_ptr<float>());
+        elementwise<float4, Abs<float4>><<<blocks, threads>>>(float4_x, N);
         cudaDeviceSynchronize();
         CHECK_CUDA_ERR(cudaGetLastError());
     }
 
-    a = torch::rand(N).cuda();
+    x = torch::rand(N).cuda();
     {
         Timer timer("torch::relu");
-        torch::relu_(a);
+        torch::relu_(x);
     }
 
-    a = torch::rand(N).cuda();
+    x = torch::rand(N).cuda();
     {
         Timer timer("elementwise.relu");
         int threads = 256;
         int blocks = (N + threads - 1) / threads;
 
-        elementwise<float, ReLU<float>><<<blocks, threads>>>(a.data_ptr<float>(), N);
+        elementwise<float, ReLU<float>><<<blocks, threads>>>(x.data_ptr<float>(), N);
         cudaDeviceSynchronize();
         CHECK_CUDA_ERR(cudaGetLastError());
     }
 
-
     return 0;
 }
-
-
-
-
