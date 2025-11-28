@@ -8,7 +8,6 @@ file(GLOB_RECURSE files ${CMAKE_SOURCE_DIR}/*/*.cu ${CMAKE_SOURCE_DIR}/*/*.cpp $
 
 add_subdirectory(001)
 add_subdirectory(002)
-add_subdirectory(004)
 add_subdirectory(005)
 add_subdirectory(006)
-add_subdirectory(gemm)
+add_subdirectory(007)
