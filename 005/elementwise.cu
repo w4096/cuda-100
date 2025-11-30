@@ -1,20 +1,36 @@
 #include "common/utils.h"
 #include <iostream>
+#include <random>
 #include <string>
-#include <torch/torch.h>
 
-__global__ void elementwise_abs(float* x, size_t N) {
+template<typename T, typename OP>
+__global__ void elementwise_v1(T* x, size_t N) {
     auto idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (idx < N) {
-        x[idx] = std::abs(x[idx]);
+        OP()(&x[idx]);
     }
 }
 
 template<typename T, typename OP>
-__global__ void elementwise(T* x, size_t N) {
+__global__ void elementwise_v2(T* x, size_t N) {
     auto idx = blockIdx.x * blockDim.x + threadIdx.x;
-    if (idx < N) {
-        OP()(&x[idx]);
+    int grid_size = gridDim.x * blockDim.x;
+
+    for (int i = 0; i < N; i += grid_size) {
+        OP()(&x[i + idx]);
+    }
+}
+
+template<typename T, typename OP, int ELEMENT_PER_THREAD>
+__global__ void elementwise_v3(T* x, size_t N) {
+    auto idx = blockIdx.x * blockDim.x + threadIdx.x;
+    idx *= ELEMENT_PER_THREAD;
+
+#pragma unroll ELEMENT_PER_THREAD
+    for (int i = 0; i < ELEMENT_PER_THREAD; i++) {
+        if (idx + i < N) {
+            OP()(&x[idx + i]);
+        }
     }
 }
 
@@ -22,9 +38,7 @@ template<typename T>
 class Abs {
  public:
     __device__ __forceinline__ void operator()(T* x) const {
-        if (*x < 0) {
-            *x = -*x;
-        }
+        *x = std::abs(*x);
     }
 };
 
@@ -39,70 +53,132 @@ class Abs<float4> {
     }
 };
 
+namespace elementwise {
+
+template<typename T, typename OP>
+__global__ void unary(T* a, size_t N) {
+    auto idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx < N) {
+        OP()(&a[idx]);
+    }
+}
+
+template<typename T, typename OP>
+__global__ void binary(T* a, T* b, size_t N) {
+    auto idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx < N) {
+        OP()(&a[idx], &b[idx]);
+    }
+}
+
+template<typename T, typename OP>
+__global__ void ternary(T* a, T* b, T* c, size_t N) {
+    auto idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx < N) {
+        OP()(&a[idx], &b[idx], &c[idx]);
+    }
+}
+
+} // namespace elementwise
+
 template<typename T>
-class ReLU {
-    __device__ __forceinline__ void operator()(T* x) const {
-        *x = *x < 0 ? 0 : *x;
+class Copy {
+ public:
+    __device__ __forceinline__ void operator()(float* src, float* dist) const {
+        *dist = *src;
     }
 };
 
 int main() {
-    int N = 1024 * 1024 * 200;
+    int N = 1024 * 1024 * 400;
+    std::vector<float> x(N);
 
-    auto x = torch::rand(N).cuda();
-    {
-        Timer timer("torch::abs");
-        torch::abs_(x);
+    std::uniform_real_distribution<float> dist(-10, 10);
+    std::default_random_engine generator;
+    for (int i = 0; i < N; ++i) {
+        x[i] = dist(generator);
     }
 
-    x = torch::rand(N).cuda();
+    float* d_nums;
+    cudaMalloc(&d_nums, sizeof(float) * N);
+    cudaMemcpy(d_nums, x.data(), sizeof(float) * N, cudaMemcpyHostToDevice);
+
     {
-        Timer timer("elementwise_abs");
+        Timer timer("elementwise_v1<float, Abs<float>>");
         int threads = 256;
         int blocks = (N + threads - 1) / threads;
 
-        elementwise_abs<<<blocks, threads>>>(x.data_ptr<float>(), N);
+        elementwise_v1<float, Abs<float>><<<blocks, threads>>>(d_nums, N);
         cudaDeviceSynchronize();
         CHECK_CUDA_ERR(cudaGetLastError());
     }
 
-    x = torch::rand(N).cuda();
     {
-        Timer timer("elementwise.abs");
-        int threads = 256;
-        int blocks = (N + threads - 1) / threads;
-
-        elementwise<float, Abs<float>><<<blocks, threads>>>(x.data_ptr<float>(), N);
-        cudaDeviceSynchronize();
-        CHECK_CUDA_ERR(cudaGetLastError());
-    }
-
-    x = torch::rand(N).cuda();
-    {
-        Timer timer("elementwise.abs.float4");
+        Timer timer("elementwise_v1<float4, Abs<float4>>");
         int threads = 256;
         int blocks = (N + threads - 1) / threads;
         blocks = blocks / 4;
 
-        auto float4_x = reinterpret_cast<float4*>(x.data_ptr<float>());
-        elementwise<float4, Abs<float4>><<<blocks, threads>>>(float4_x, N);
+        auto f4 = reinterpret_cast<float4*>(d_nums);
+        elementwise_v1<float4, Abs<float4>><<<blocks, threads>>>(f4, N / 4);
         cudaDeviceSynchronize();
         CHECK_CUDA_ERR(cudaGetLastError());
     }
 
-    x = torch::rand(N).cuda();
     {
-        Timer timer("torch::relu");
-        torch::relu_(x);
-    }
-
-    x = torch::rand(N).cuda();
-    {
-        Timer timer("elementwise.relu");
+        Timer timer("elementwise_v2<float, Abs<float>>");
         int threads = 256;
         int blocks = (N + threads - 1) / threads;
+        blocks = blocks / 4;
 
-        elementwise<float, ReLU<float>><<<blocks, threads>>>(x.data_ptr<float>(), N);
+        elementwise_v2<float, Abs<float>><<<blocks, threads>>>(d_nums, N);
+        cudaDeviceSynchronize();
+        CHECK_CUDA_ERR(cudaGetLastError());
+    }
+
+    {
+        Timer timer("elementwise_v2<float4, Abs<float4>>");
+        int threads = 256;
+        int blocks = (N + threads - 1) / threads;
+        blocks = blocks / 4 / 4;
+
+        auto f4 = reinterpret_cast<float4*>(d_nums);
+        elementwise_v2<float4, Abs<float4>><<<blocks, threads>>>(f4, N / 4);
+        cudaDeviceSynchronize();
+        CHECK_CUDA_ERR(cudaGetLastError());
+    }
+
+    {
+        Timer timer("elementwise_v3<float, Abs<float>, 4>");
+        int threads = 256;
+        int blocks = (N + threads - 1) / threads;
+        blocks = blocks / 4;
+
+        elementwise_v3<float, Abs<float>, 4><<<blocks, threads>>>(d_nums, N);
+        cudaDeviceSynchronize();
+        CHECK_CUDA_ERR(cudaGetLastError());
+    }
+
+    {
+        Timer timer("elementwise_v3<float4, Abs<float4>, 4>");
+        int threads = 256;
+        int blocks = (N + threads - 1) / threads;
+        blocks = blocks / 4 / 4;
+
+        auto f4 = reinterpret_cast<float4*>(d_nums);
+        elementwise_v3<float4, Abs<float4>, 4><<<blocks, threads>>>(f4, N / 4);
+        cudaDeviceSynchronize();
+        CHECK_CUDA_ERR(cudaGetLastError());
+    }
+
+    {
+        Timer timer("elementwise::binary<float, Copy<float>>");
+        float* d_out;
+        cudaMalloc(&d_out, sizeof(float) * N);
+
+        int threads = 256;
+        int blocks = (N + threads - 1) / threads;
+        elementwise::binary<float, Copy<float>><<<blocks, threads>>>(d_nums, d_out, N);
         cudaDeviceSynchronize();
         CHECK_CUDA_ERR(cudaGetLastError());
     }

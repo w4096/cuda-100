@@ -7,4 +7,10 @@ include_directories(..)
 
 set(CMAKE_BUILD_TYPE "Release")
 
-add_executable(elementwise elementwise.cu)
+add_executable(transpose transpose.cu)
+find_package(CUDAToolkit REQUIRED)
+
+target_link_libraries(transpose PRIVATE
+        CUDA::cudart
+        CUDA::cublas
+)

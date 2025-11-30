@@ -42,7 +42,7 @@ class Timer {
     ~Timer() {
         auto end = std::chrono::high_resolution_clock::now();
         std::chrono::duration<float, std::milli> elapsed = end - start_;
-        std::cout << name_ << ": wall: " << elapsed.count() << "ms" << std::endl;
+        std::cout << name_ << ": cost: " << elapsed.count() << "ms" << std::endl;
     }
 
  private:
