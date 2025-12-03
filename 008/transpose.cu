@@ -15,6 +15,19 @@ __global__ void transpose_naive(const float* in, float* out, int m, int n) {
     }
 }
 
+__global__ void transpose_coalesced(const float* in, float* out, int m, int n) {
+    int x = blockIdx.x * blockDim.x + threadIdx.x;
+    int y = blockIdx.y * blockDim.y + threadIdx.y;
+    y *= 4;
+
+    float4 a;
+    a.x = in[y * n + x];
+    a.y = in[(y+1) * n + x];
+    a.z = in[(y+2) * n + x];
+    a.w = in[(y+3) * n + x];
+    *reinterpret_cast<float4 *>(&out[x * m + y]) = a;
+}
+
 template<int TILE_DIM>
 __global__ void transpose_tiling(const float* in, float* out, int m, int n) {
     __shared__ float tile[TILE_DIM][TILE_DIM];
@@ -144,6 +157,20 @@ int main() {
         CHECK_CUDA_ERR(cudaDeviceSynchronize());
     }
     unsigned int cs = checksum(d_out, HEIGHT * WIDTH);
+
+    {
+        Timer t("transpose_coalesced");
+
+        dim3 block(32, 8);
+        dim3 grid((WIDTH + block.x - 1) / block.x, (HEIGHT + block.y - 1) / block.y);
+        grid.y /= 4;
+
+        transpose_coalesced<<<grid, block>>>(d_in, d_out, HEIGHT, WIDTH);
+        CHECK_CUDA_ERR(cudaGetLastError());
+        CHECK_CUDA_ERR(cudaDeviceSynchronize());
+    }
+    ASSERT(cs == checksum(d_out, HEIGHT * WIDTH));
+
 
     {
         Timer t("naive block=16x16");

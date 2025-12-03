@@ -1,4 +1,4 @@
-set(Torch_DIR ~/code/libtorch-cuda-12.8/libtorch/share/cmake/Torch)
+set(Torch_DIR ~/Downloads/libtorch-shared-with-deps-2.9.1+cu130/libtorch/share/cmake/Torch)
 find_package(Torch REQUIRED)
 
 find_package(Python3 REQUIRED Interpreter Development)
