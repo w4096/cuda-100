@@ -1,3 +1,9 @@
+## 006 - Reduction
+
+- Implement the kernel mentioned in this Optimizing Parallel Reduction in CUDA.
+- Write a [blog post](https://wangyu.me/posts/cuda/reduction/) to test what I have learned.
+
+
 
 | Function Name             | Duration [ms] | Compute Throughput [%] | Memory Throughput [%] |
 | :------------------------ | :------------ | :--------------------- | :-------------------- |
