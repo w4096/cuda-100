@@ -2,7 +2,7 @@
 #include <cassert>
 #include <iostream>
 
-__global__ void matrixZeroKernel(float *matrix, const int width, const int height) {
+__global__ void matrix_zero_kernel(float *matrix, const int width, const int height) {
     const auto x = blockIdx.x * blockDim.x + threadIdx.x;
     const auto y = blockIdx.y * blockDim.y + threadIdx.y;
 
@@ -27,7 +27,7 @@ int main(int argc, char **argv) {
 
     dim3 threads = {16, 16};
     dim3 blocks = {(width + threads.x - 1) / threads.x, (height + threads.y - 1) / threads.y};
-    matrixZeroKernel<<<blocks, threads>>>(d_matrix, width, height);
+    matrix_zero_kernel<<<blocks, threads>>>(d_matrix, width, height);
     cudaDeviceSynchronize();
 
     cudaMemcpy(h_matrix, d_matrix, width * height * sizeof(float), cudaMemcpyDeviceToHost);
