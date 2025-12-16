@@ -11,11 +11,11 @@ torch::Tensor softmax(torch::Tensor in) {
     if (dim <= 1024) {
         dim3 threads = 256;
         dim3 blocks = rows / (threads.x / 32);
-        softmax_warp_reduce<<<blocks, threads>>>(in.data_ptr<float>(), out.data_ptr<float>(), rows, dim);
+        online_softmax_warp_reduce<<<blocks, threads>>>(in.data_ptr<float>(), out.data_ptr<float>(), rows, dim);
     } else {
         dim3 threads = 256;
         dim3 blocks = rows;
-        softmax_block_reduce<<<blocks, threads>>>(in.data_ptr<float>(), out.data_ptr<float>(), rows, dim);
+        online_softmax_block_reduce<<<blocks, threads>>>(in.data_ptr<float>(), out.data_ptr<float>(), rows, dim);
     }
 
     return out;

@@ -91,6 +91,40 @@ __global__ void softmax_warp_reduce(const float * __restrict__ in, float *out, i
     }
 }
 
+__global__ void online_softmax_warp_reduce(const float * __restrict__ in, float *out, int rows, int dim) {
+    auto threads = gridDim.x * blockDim.x;
+    auto warps =  threads / 32;
+    auto global_thread_idx = blockIdx.x * blockDim.x + threadIdx.x;
+    auto warp_idx = global_thread_idx / 32;
+    auto lane = global_thread_idx % 32;
+
+    for (unsigned int row = warp_idx; row < rows; row += warps) {
+        const float *x = &in[row * dim];
+        float *o = &out[row * dim];
+
+        float sum = 0;
+        float max = cuda::std::numeric_limits<float>::min();
+        for (auto col = lane; col < dim; col += 32) {
+            float m = fmax(x[col], max);
+            if (col > lane && m > max) {
+                sum = sum * __expf(max - m);
+            }
+            max = m;
+            sum += __expf(x[col] - max);
+        }
+        float m = warp_reduce_max(max);
+        if (m > max) {
+            sum = sum * __expf(max - m);
+            max = m;
+        }
+        sum = warp_reduce_sum(sum);
+
+        for (auto col = lane; col < dim; col += 32) {
+            o[col] = __expf(x[col] - max) / sum;
+        }
+    }
+}
+
 __global__ void softmax_block_reduce(const float * __restrict__ in, float *out, int rows, int dim) {
     __shared__ float smem[32];
 
@@ -107,6 +141,37 @@ __global__ void softmax_block_reduce(const float * __restrict__ in, float *out, 
         float sum = 0;
         for (auto col = threadIdx.x; col < dim; col += blockDim.x) {
             sum += __expf(x[col] - max);
+        }
+        sum = shared_mem_reduce_sum(smem, sum);
+
+        for (auto col = threadIdx.x; col < dim; col += blockDim.x) {
+            o[col] = __expf(x[col] - max) / sum;
+        }
+    }
+}
+
+__global__ void online_softmax_block_reduce(const float * __restrict__ in, float *out, int rows, int dim) {
+    __shared__ float smem[32];
+
+    for (unsigned int row = blockIdx.x; row < rows; row += gridDim.x) {
+        const float *x = &in[row * dim];
+        float *o = &out[row * dim];
+
+        float sum = 0;
+        float max = cuda::std::numeric_limits<float>::min();
+        for (auto col = threadIdx.x; col < dim; col += blockDim.x) {
+            float m = fmax(x[col], max);
+            if (col > threadIdx.x && m > max) {
+                sum = sum * __expf(max - m);
+            }
+            max = m;
+            sum += __expf(x[col] - max);
+        }
+
+        float m = shared_mem_reduce_max(smem, max);
+        if (m > max) {
+            sum = sum * __expf(max - m);
+            max = m;
         }
         sum = shared_mem_reduce_sum(smem, sum);
 

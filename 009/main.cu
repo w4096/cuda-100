@@ -80,7 +80,7 @@ int main() {
         Timer timer("block");
         int threads = 256;
         int blocks = 4096;
-        softmax_block_reduce<<<blocks, threads>>>(d_in, d_out, m, dim);
+        online_softmax_block_reduce<<<blocks, threads>>>(d_in, d_out, m, dim);
         cudaDeviceSynchronize();
         CHECK_CUDA_ERR(cudaGetLastError());
     }
