@@ -1,3 +1,5 @@
+
+# Set the libtorch path
 set(Torch_DIR ~/Downloads/libtorch-shared-with-deps-2.9.1+cu130/libtorch/share/cmake/Torch)
 find_package(Torch REQUIRED)
 

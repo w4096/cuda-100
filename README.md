@@ -13,4 +13,6 @@ A collection of CUDA code I write when I was learning CUDA programming.
 - 007 [GEMM](007)
 - 008 [Matrix Transpose](008)
 - 009 [Softmax](009)
+- 010 [Occupancy](010)
+- 011 [Rotary Position Embedding](011)
 
