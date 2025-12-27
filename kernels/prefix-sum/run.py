@@ -14,10 +14,10 @@ class Runner(RunnerBase):
         }
 
     def build_test_cases(self):
-        N = 4096 * 1024 * 10
+        N = 1024 * 1024 * 10
         return [
             {
-                "function": "solve",
+                "function": "kogge_stone_scan",
                 "argv": {
                     "input": torch.ones(N, device='cuda', dtype=torch.float32),
                     "output": torch.empty(N, device='cuda', dtype=torch.float32),
@@ -25,7 +25,23 @@ class Runner(RunnerBase):
                 }
             },
             {
-                "function": "solve2",
+                "function": "kogge_stone_scan_double_buffer",
+                "argv": {
+                    "input": torch.ones(N, device='cuda', dtype=torch.float32),
+                    "output": torch.empty(N, device='cuda', dtype=torch.float32),
+                    "N": N,
+                }
+            },
+            {
+                "function": "brent_kung_scan",
+                "argv": {
+                    "input": torch.ones(N, device='cuda', dtype=torch.float32),
+                    "output": torch.empty(N, device='cuda', dtype=torch.float32),
+                    "N": N,
+                }
+            },
+            {
+                "function": "brent_kung_scan_optimized",
                 "argv": {
                     "input": torch.ones(N, device='cuda', dtype=torch.float32),
                     "output": torch.empty(N, device='cuda', dtype=torch.float32),

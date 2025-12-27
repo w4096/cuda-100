@@ -79,6 +79,7 @@ class RunnerBase(ABC):
             "-O3",
             "--compiler-options",
             "-fPIC",
+            "-lineinfo",
             "--shared",
             "-o", self.shared_lib_path,
         ]
@@ -129,12 +130,11 @@ class RunnerBase(ABC):
         cases = self.build_test_cases()
         for i, case in enumerate(cases):
             with torch.profiler.profile() as prof:
-                start = time.perf_counter()
                 self.run_test_case(case)
-                end = time.perf_counter()
             self.check(case)
             print("=" * 40 + f" Test case {i+1} " + "=" * 40)
-            print(f"Test case passed in {(end - start) * 1000:.3f} ms.")
+            case_summary = build_case_summary(case)
+            print(case_summary)
             print(prof.key_averages().table(sort_by="cuda_time_total", row_limit=10))
             print("\n")
 
@@ -143,3 +143,20 @@ class RunnerBase(ABC):
 
     def __call__(self):
         self.run()
+
+
+def build_case_summary(case: dict) -> str:
+    summary = ""
+    if "function" in case:
+        summary += f"Function: {case['function']}\n"
+        argv = case["argv"]
+    else:
+        argv = case
+
+    summary += "Arguments:\n"
+    for k, v in argv.items():
+        if isinstance(v, torch.Tensor):
+            summary += f"  {k}: shape={v.shape}, dtype={v.dtype}\n"
+        else:
+            summary += f"  {k}: {v}\n"
+    return summary
