@@ -10,3 +10,4 @@ cmake-build-debug
 *.log
 /todo
 __pycache__/
+*.ncu-rep

@@ -19,7 +19,8 @@ __global__ void add_prefix_sum_for_blocks(float* output, const float* block_pref
 }
 
 template<int BLOCK_SIZE>
-__global__ void kogge_stone_scan_double_buffer(const float* input, float* output, int N, float* block_sums = nullptr) {
+__global__ void kogge_stone_scan_double_buffer_kernel(const float* input, float* output, int N,
+                                                      float* block_sums = nullptr) {
     int idx = threadIdx.x + blockDim.x * blockIdx.x;
 
     __shared__ float smem[BLOCK_SIZE * 2];
@@ -53,7 +54,7 @@ __global__ void kogge_stone_scan_double_buffer(const float* input, float* output
 }
 
 template<int BLOCK_SIZE>
-__global__ void kogge_stone_scan(const float* input, float* output, int N, float* block_sums = nullptr) {
+__global__ void kogge_stone_scan_kernel(const float* input, float* output, int N, float* block_sums = nullptr) {
     int idx = threadIdx.x + blockDim.x * blockIdx.x;
 
     __shared__ float smem[BLOCK_SIZE];
@@ -86,7 +87,7 @@ __global__ void kogge_stone_scan(const float* input, float* output, int N, float
 }
 
 template<int BLOCK_SIZE>
-__global__ void brent_kung_scan(const float* input, float* output, int N, float* block_sums = nullptr) {
+__global__ void brent_kung_scan_kernel(const float* input, float* output, int N, float* block_sums = nullptr) {
     int tid = threadIdx.x + blockDim.x * blockIdx.x;
 
     __shared__ float smem[BLOCK_SIZE];
@@ -120,7 +121,8 @@ __global__ void brent_kung_scan(const float* input, float* output, int N, float*
 }
 
 template<int BLOCK_SIZE>
-__global__ void brent_kung_scan_optimized(const float* input, float* output, int N, float* block_sums = nullptr) {
+__global__ void brent_kung_scan_optimized_kernel(const float* input, float* output, int N,
+                                                 float* block_sums = nullptr) {
     int i = threadIdx.x + blockDim.x * blockIdx.x * 2;
     constexpr int SECTION_SIZE = BLOCK_SIZE * 2;
     __shared__ float smem[SECTION_SIZE];
@@ -166,10 +168,8 @@ __global__ void brent_kung_scan_optimized(const float* input, float* output, int
     }
 }
 
-// input, output are device pointers
-extern "C" void solve(const float* input, float* output, int N) {
-    constexpr int ELEMENTS_PER_THREAD = 1;
-    constexpr int THREAD_BLOCK_SIZE = 512;
+template<int THREAD_BLOCK_SIZE, int ELEMENTS_PER_THREAD>
+void scan_launch(const float* input, float* output, int N, const void* kernel) {
     dim3 threads = THREAD_BLOCK_SIZE;
     dim3 blocks = (std::max(1, N / ELEMENTS_PER_THREAD) + threads.x - 1) / threads.x;
 
@@ -177,35 +177,40 @@ extern "C" void solve(const float* input, float* output, int N) {
     if (blocks.x > 1) {
         cudaMalloc(&block_sums, blocks.x * sizeof(float));
     }
-    kogge_stone_scan<THREAD_BLOCK_SIZE><<<blocks, threads>>>(input, output, N, block_sums);
+
+    void* argv[] = {static_cast<void*>(&input), static_cast<void*>(&output), static_cast<void*>(&N),
+                    static_cast<void*>(&block_sums)};
+    cudaLaunchKernel(kernel, blocks, threads, argv, 0, nullptr);
 
     if (blocks.x > 1) {
         float* block_sums_prefix = nullptr;
         cudaMalloc(&block_sums_prefix, blocks.x * sizeof(float));
-        solve(block_sums, block_sums_prefix, blocks.x);
+        scan_launch<THREAD_BLOCK_SIZE, ELEMENTS_PER_THREAD>(block_sums, block_sums_prefix, blocks.x, kernel);
         add_prefix_sum_for_blocks<ELEMENTS_PER_THREAD><<<blocks, threads>>>(output, block_sums_prefix, N);
     }
     cudaDeviceSynchronize();
 }
 
-// input, output are device pointers
-extern "C" void solve2(const float* input, float* output, int N) {
-    constexpr int ELEMENTS_PER_THREAD = 2;
-    constexpr int THREAD_BLOCK_SIZE = 512;
-    dim3 threads = THREAD_BLOCK_SIZE;
-    dim3 blocks = (std::max(1, N / ELEMENTS_PER_THREAD) + threads.x - 1) / threads.x;
+extern "C" {
 
-    float* block_sums = nullptr;
-    if (blocks.x > 1) {
-        cudaMalloc(&block_sums, blocks.x * sizeof(float));
-    }
-    brent_kung_scan_optimized<THREAD_BLOCK_SIZE><<<blocks, threads>>>(input, output, N, block_sums);
-
-    if (blocks.x > 1) {
-        float* block_sums_prefix = nullptr;
-        cudaMalloc(&block_sums_prefix, blocks.x * sizeof(float));
-        solve2(block_sums, block_sums_prefix, blocks.x);
-        add_prefix_sum_for_blocks<ELEMENTS_PER_THREAD><<<blocks, threads>>>(output, block_sums_prefix, N);
-    }
-    cudaDeviceSynchronize();
+void kogge_stone_scan(const float* input, float* output, int N) {
+    auto kernel = reinterpret_cast<const void*>(kogge_stone_scan_kernel<512>);
+    scan_launch<512, 1>(input, output, N, kernel);
 }
+
+void kogge_stone_scan_double_buffer(const float* input, float* output, int N) {
+    auto kernel = reinterpret_cast<const void*>(kogge_stone_scan_double_buffer_kernel<512>);
+    scan_launch<512, 1>(input, output, N, kernel);
+}
+
+void brent_kung_scan(const float* input, float* output, int N) {
+    auto kernel = reinterpret_cast<const void*>(brent_kung_scan_kernel<512>);
+    scan_launch<512, 1>(input, output, N, kernel);
+}
+
+void brent_kung_scan_optimized(const float* input, float* output, int N) {
+    auto kernel = reinterpret_cast<const void*>(brent_kung_scan_optimized_kernel<512>);
+    scan_launch<512, 2>(input, output, N, kernel);
+}
+
+} // extern "C"
