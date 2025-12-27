@@ -2,17 +2,20 @@
 
 A collection of CUDA code I write when I was learning CUDA programming.
 
-## Work Log
+## Run the Code
 
-- 001 [Introduction to GPU and CUDA](001)
-- 002 [Programming Model](002)
-- 003 [GPU Hardware](003)
-- 004 [Memory Model](004)
-- 005 [Element-wise Operation](005)
-- 006 [Reduction](006)
-- 007 [GEMM](007)
-- 008 [Matrix Transpose](008)
-- 009 [Softmax](009)
-- 010 [Occupancy](010)
-- 011 [Rotary Position Embedding](011)
+I have implemented a Python class which can compile and run the CUDA kernel conveniently. In every kernel folder, there is a `run.py` file, you can run this script to test the CUDA kernel.
 
+For example, to run the code in folder `./kernels/relu`, you can use the command:
+
+set the project root path as `PYTHONPATH` first:
+
+```bash
+source env.sh  # set project root path as PYTHONPATH
+```
+
+then run the script:
+
+```bash
+python ./kernels/relu/run.py
+```

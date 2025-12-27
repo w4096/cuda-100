@@ -5,3 +5,8 @@ a.out
 build/
 src/
 draft/
+*.so
+cmake-build-debug
+*.log
+/todo
+__pycache__/
