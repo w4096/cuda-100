@@ -25,11 +25,8 @@ class Runner(RunnerBase):
             },
         ]
 
-    def check(self, case):
-        assert torch.allclose(
-            case["output"],
-            F.silu(case["input"])
-        )
+    def check(self, input, output, **kwargs):
+        assert torch.allclose(output, F.silu(input))
 
 
 

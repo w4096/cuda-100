@@ -24,7 +24,7 @@ class Runner(RunnerBase):
         ]
 
 
-    def check(self, case):
+    def check(self, **kwargs):
         pass
 
 

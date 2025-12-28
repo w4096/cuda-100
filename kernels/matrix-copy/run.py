@@ -28,8 +28,8 @@ class Runner(RunnerBase):
             }
         ]
 
-    def check(self, case):
-        assert torch.allclose(case["A"], case["B"])
+    def check(self, A, B, **kwargs):
+        assert torch.allclose(A, B)
 
 
 

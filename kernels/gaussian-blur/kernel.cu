@@ -94,8 +94,7 @@ template<int OUTPUT_TILE_WIDTH, int OUTPUT_TILE_HEIGHT>
 __global__ void conv2d_tiled_kernel_2(const float* __restrict__ input, const float* __restrict__ kernel, float* output, int input_rows,
                                     int input_cols, int kernel_rows, int kernel_cols, int input_tile_width, int input_tile_height) {
 
-    extern __shared__ float smem[];
-    float *tile = smem;
+    extern __shared__ float tile[];
 
     // left top corner of the tile in the input matrix
     int out_tile_offset_x = blockIdx.x * OUTPUT_TILE_WIDTH;

@@ -44,15 +44,11 @@ class Runner(RunnerBase):
                 }
             }
 
-    def _check(self, argv):
-        input = argv["input"].view(1, 1, argv["input_rows"], argv["input_cols"])
-        kernel = argv["kernel"].view(1, 1, argv["kernel_rows"], argv["kernel_cols"])
+    def check(self, input, kernel, output, input_rows, input_cols, kernel_rows, kernel_cols, **kwargs):
+        input = input.view(1, 1, input_rows, input_cols)
+        kernel = kernel.view(1, 1, kernel_rows, kernel_cols)
         expected = torch.nn.functional.conv2d(input, kernel, padding='same').view(-1)
-        assert torch.allclose(argv["output"], expected)
-
-
-    def check(self, case):
-        self._check(case["argv"])
+        assert torch.allclose(output, expected)
 
 if __name__ == "__main__":
     Runner()()

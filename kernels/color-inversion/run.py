@@ -24,11 +24,11 @@ class Runner(RunnerBase):
             }
         ]
 
-    def check(self, case):
-        copied = case["image"].view(-1, 4)
+    def check(self, image, **kwargs):
+        copied = image.view(-1, 4)
         copied[:, :3] = 255.0 - copied[:, :3]
         copied = copied.view(-1)
-        assert torch.allclose(copied, case["image"])
+        assert torch.allclose(copied, image)
 
 
 

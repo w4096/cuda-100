@@ -38,10 +38,9 @@ class Runner(RunnerBase):
             }
 
 
-    def check(self, case):
-        argv = case["argv"]
-        expected = torch.dot(argv["A"], argv["B"])
-        assert torch.allclose(argv["C"], expected, atol=1e-3, rtol=1e-3)
+    def check(self, A, B, C, **kwargs):
+        expected = torch.dot(A, B)
+        assert torch.allclose(C, expected, atol=1e-3, rtol=1e-3)
 
 
 if __name__ == "__main__":

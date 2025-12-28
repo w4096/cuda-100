@@ -19,16 +19,13 @@ class Runner(RunnerBase):
         return [
             {
                 "input": torch.randn(N, device="cuda", dtype=dtype),
-                "output": torch.empty(1, device="cuda", dtype=dtype),
+                "output": torch.zeros(1, device="cuda", dtype=dtype),
                 "N": N,
             },
         ]
 
-    def check(self, case):
-        assert torch.allclose(
-            case["output"],
-            torch.sum(case["input"]).unsqueeze(0)
-        )
+    def check(self, input, output, **kwargs):
+        assert torch.allclose(output, torch.sum(input))
 
 
 

@@ -28,8 +28,8 @@ class Runner(RunnerBase):
             }
         ]
 
-    def check(self, case):
-        assert torch.allclose(case["output"], F.leaky_relu(case["input"], negative_slope=0.01))
+    def check(self, input, output, **kwargs):
+        assert torch.allclose(output, F.leaky_relu(input, negative_slope=0.01))
 
 
 

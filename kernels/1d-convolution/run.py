@@ -30,12 +30,12 @@ class Runner(RunnerBase):
             }
         ]
 
-    def check(self, case):
+    def check(self, input, kernel, output, **kwargs):
         expected_output = torch.nn.functional.conv1d(
-            case["input"].unsqueeze(0).unsqueeze(0),
-            case["kernel"].unsqueeze(0).unsqueeze(0)
+            input.unsqueeze(0).unsqueeze(0),
+            kernel.unsqueeze(0).unsqueeze(0)
         ).squeeze(0).squeeze(0)
-        assert torch.allclose(case["output"], expected_output, atol=1e-5, rtol=1e-5)
+        assert torch.allclose(output, expected_output, atol=1e-5, rtol=1e-5)
 
 
 if __name__ == "__main__":

@@ -30,9 +30,8 @@ class Runner(RunnerBase):
             })
         return cases
 
-    def check(self, case):
-        C = torch.matmul(case["A"], case["B"])
-        assert torch.allclose(case["C"], C, atol=1e-4, rtol=1e-4)
+    def check(self, A, B, C, **kwargs):
+        assert torch.allclose(C, A @ B, atol=1e-4, rtol=1e-4)
 
 
 if __name__ == "__main__":

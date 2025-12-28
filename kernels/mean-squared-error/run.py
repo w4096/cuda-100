@@ -24,11 +24,9 @@ class Runner(RunnerBase):
                 "N": N,
             }
 
-    def check(self, case):
-        predictions = case["predictions"]
-        targets = case["targets"]
+    def check(self, predictions, targets, mse, **kwargs):
         expected = torch.mean((predictions - targets) ** 2)
-        assert torch.allclose(case["mse"], expected)
+        assert torch.allclose(mse, expected)
 
 
 if __name__ == "__main__":

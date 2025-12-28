@@ -24,9 +24,8 @@ class Runner(RunnerBase):
             },
         ]
 
-    def check(self, case):
-        assert case["output"].item() == (case["input"] == case["K"]).sum().item()
-
+    def check(self, input, output, K, **kwargs):
+        assert output.item() == (input == K).sum().item()
 
 
 if __name__ == "__main__":

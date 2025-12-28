@@ -32,20 +32,10 @@ class Runner(RunnerBase):
                 "beta": 1.0,
             }
 
-    def check(self, case):
-        A = case["A"]
-        B = case["B"]
-        alpha = case["alpha"]
-        beta = case["beta"]
-        M = case["M"]
-        N = case["N"]
+    def check(self, A, B, C, alpha, beta, M, N, **kwargs):
+        expected = alpha * (A @ B) + beta * torch.ones(M, N, device="cuda", dtype=A.dtype)
 
-        print(case["C"].sum(dim=-1))
-
-        C = alpha * (A @ B) + beta * torch.ones(M, N, device="cuda", dtype=A.dtype)
-
-        print(C.sum(dim=-1))
-        assert torch.allclose(case["C"], C, atol=1e-2, rtol=1e-2)
+        assert torch.allclose(C, expected, atol=1e-2, rtol=1e-2)
 
 
 if __name__ == "__main__":

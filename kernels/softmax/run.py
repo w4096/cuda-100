@@ -31,10 +31,10 @@ class Runner(RunnerBase):
             },
         ]
 
-    def check(self, case):
+    def check(self, input, output, **kwargs):
         assert torch.allclose(
-            case["output"],
-            torch.softmax(case["input"], dim=0),
+            output,
+            torch.softmax(input, dim=0),
             atol=1e-05,
             rtol=1e-05
         )

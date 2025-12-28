@@ -50,10 +50,9 @@ class Runner(RunnerBase):
             }
         ]
 
-    def check(self, case):
-        args = case["argv"]
-        expected = torch.cumsum(args["input"], dim=0)
-        assert torch.allclose(args["output"], expected)
+    def check(self, input, output, **kwargs):
+        expected = torch.cumsum(input, dim=0)
+        assert torch.allclose(output, expected)
 
 
 

@@ -27,11 +27,8 @@ class Runner(RunnerBase):
             }
         ]
 
-    def check(self, case):
-        assert torch.allclose(
-            case["C"],
-            case["A"] + case["B"]
-        )
+    def check(self, A, B, C, **kwargs):
+        assert torch.allclose(C, A + B)
 
 
 if __name__ == "__main__":

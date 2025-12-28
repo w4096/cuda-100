@@ -59,7 +59,7 @@ class RunnerBase(ABC):
         pass
 
     @abstractmethod
-    def check(self, case: dict):
+    def check(self, **kwargs):
         """
         using assertion check the output correctness for a test case
         """
@@ -131,7 +131,14 @@ class RunnerBase(ABC):
         for i, case in enumerate(cases):
             with torch.profiler.profile() as prof:
                 self.run_test_case(case)
-            self.check(case)
+
+            func_name = case.get("function", "solve")
+            if "function" in case:
+                argv = case["argv"]
+            else:
+                argv = case
+            self.check(function=func_name, **argv)
+
             print("=" * 40 + f" Test case {i+1} " + "=" * 40)
             case_summary = build_case_summary(case)
             print(case_summary)
