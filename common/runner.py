@@ -104,12 +104,15 @@ class RunnerBase(ABC):
         func(*argv)
 
     def run_test_case(self, case: dict):
-        if "function" in case:
-            func_name = case["function"]
+        if "argv" in case:
             argv = list(case["argv"].values())
         else:
-            func_name = "solve"
             argv = list(case.values())
+
+        if "function" in case:
+            func_name = case["function"]
+        else:
+            func_name = "solve"
 
         signature = self.signature()
         if func_name in signature:
@@ -132,17 +135,17 @@ class RunnerBase(ABC):
             with torch.profiler.profile() as prof:
                 self.run_test_case(case)
 
-            func_name = case.get("function", "solve")
-            if "function" in case:
-                argv = case["argv"]
-            else:
-                argv = case
-            self.check(function=func_name, **argv)
-
             print("=" * 40 + f" Test case {i+1} " + "=" * 40)
             case_summary = build_case_summary(case)
             print(case_summary)
             print(prof.key_averages().table(sort_by="cuda_time_total", row_limit=10))
+
+            if "argv" in case:
+                argv = case["argv"]
+            else:
+                argv = case
+            self.check(case=case, **argv)
+
             print("\n")
 
         print(f"All test cases passed.")
