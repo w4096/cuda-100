@@ -117,16 +117,6 @@ __global__  void thread_sort(T *data, int N) {
     }
 }
 
-template<typename T, int ELEMENTS_PER_THREAD>
-__global__ void copy(T* out, T* in, int N) {
-    #pragma unroll
-    for (int i = 0; i < ELEMENTS_PER_THREAD; i++) {
-        int idx = threadIdx.x + blockIdx.x * blockDim.x + i * blockDim.x * gridDim.x;
-        if (idx < N) {
-            out[idx] = in[idx];
-        }
-    }
-}
 
 static unsigned int cdiv(unsigned int a, unsigned int b) {
     return (a + b - 1) / b;
@@ -155,8 +145,9 @@ extern "C" void merge_sort(float* data, int N) {
 
     // If the final result is in tmp, copy it back to data
     if (input != data) {
-        copy<float, ELEMENTS_PER_THREAD><<<blocks, threadsPerBlock>>>(data, input, N);
+        cudaMemcpy(data, input, N *sizeof(float), cudaMemcpyDeviceToDevice);
     }
 
+    cudaFree(tmp);
     cudaDeviceSynchronize();
 }
