@@ -24,8 +24,14 @@ class RunnerBase(ABC):
         If there is only one function, use the key "default".
         Example:
         {
-            "default": [ctypes.POINTER(ctypes.c_float), ctypes.c_int],
-            "other_function": [ctypes.c_int, ctypes.c_float],
+            "default": [
+                ctypes.POINTER(ctypes.c_float),
+                ctypes.c_int
+            ],
+            "other_function": [
+                ctypes.c_int,
+                ctypes.c_float
+            ],
         }
         """
         pass
@@ -47,7 +53,7 @@ class RunnerBase(ABC):
             }
         ]
 
-        or if there is only one function: (default function name is "solve")
+        or if there is only one function:, the default function name is "solve", and you can provide arguments directly:
         [
             {
                 "input": torch.randn(1024, device='cuda', dtype=torch.float32),
@@ -62,6 +68,7 @@ class RunnerBase(ABC):
     def check(self, **kwargs):
         """
         using assertion check the output correctness for a test case
+        the case and arguments are passed as keyword arguments.
         """
         pass
 

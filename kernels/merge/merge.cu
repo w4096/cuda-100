@@ -1,19 +1,17 @@
 #include <cuda_runtime.h>
 
-template <typename T>
-int __device__ co_rank(T k, const T* a, int m, const T* b, int n) {
+template<typename T>
+int __device__ co_rank(int k, const T* a, int m, const T* b, int n) {
     int lo = max(0, k - n);
-    int hi = min(k, m) + 1;
+    int hi = min(k, m)+1;
 
     while (lo < hi) {
         int i = lo + (hi - lo) / 2;
         int j = k - i;
-        if (i > 0 && j < n && a[i] > b[j]) {
-            hi = i;
-        } else if (j > 0 && i < m && b[j - 1] >= a[i]) {
+        if (i < m && j > 0 && a[i] < b[j - 1]) {
             lo = i + 1;
         } else {
-            return i;
+            hi = i;
         }
     }
     return lo;

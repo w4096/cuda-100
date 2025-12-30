@@ -28,30 +28,30 @@ if (a[i] < b[j]) {
 We can do this using a binary search approach:
 
 ```c
-int findMergeIndex(int* a, int m, int* b, int n, int k) {
-    int lo = max(0, k - n); // n is the size of array B
-    int hi = min(k, m);     // m is the size of array A
-    
+template<typename T>
+int __device__ co_rank(int k, const T* a, int m, const T* b, int n) {
+    int lo = max(0, k - n);
+    int hi = min(k, m) + 1;
+
     while (lo < hi) {
-        int i = (lo + hi) / 2;
+        int i = lo + (hi - lo) / 2;
         int j = k - i;
-        
-        if (i > 0 && j < n && a[i - 1] > b[j]) {
-            hi = i;
-        } else if (j > 0 && i < m && b[j - 1 > a[i]) {
+        if (i < m && j > 0 && a[i] < b[j - 1]) {
             lo = i + 1;
         } else {
-            return i; // Found the correct partition
+            hi = i;
         }
     }
     return lo;
 }
 ```
 
+if `a[i] < b[j - 1]`, it means that we need to increase `i` to include more elements from A in the merge. Otherwise, we decrease `hi` to reduce the number of elements from A. if `a[i] == b[j - 1]`,
+we can safely decrease `hi` to ensure that we use elements from B first.
 
 ### Merge
 
-If thread `t` is responsible for merging the segment of C from index `i` for `a` and index 'j' of `b`, it can merge the two segments as follows:
+Once we have determined the starting indices `i` and `j` for arrays A and B respectively, we can proceed to merge the elements into array C for the segment assigned to the thread.
 
 ```c
 if (i >= m) {
