@@ -73,6 +73,13 @@ class RunnerBase(ABC):
         the case and arguments are passed as keyword arguments.
         """
         pass
+    
+    def gencode_options(self) -> list[str]:
+        # default to compute_86
+        return [
+            "-arch=native",
+        ]
+
 
     def compile_options(self) -> list[str]:
         options = []
@@ -92,7 +99,11 @@ class RunnerBase(ABC):
             cuda_home = os.environ["CUDA_HOME"]
         cuda_include = os.path.join(cuda_home, "include", "cccl")
         options.append(f"-I{cuda_include}")
-        
+
+        options += self.gencode_options()
+
+        options.append("-lcuda")
+
         return options
 
     def compile(self):
@@ -133,6 +144,7 @@ class RunnerBase(ABC):
 
         func = self.funcs[func_name]
         func(*argv)
+        torch.cuda.synchronize()
 
     def run_test_case(self, case: dict):
         if "argv" in case:

@@ -19,6 +19,3 @@ then run the script:
 ```bash
 python ./kernels/relu/run.py
 ```
-
-
-https://github.com/xichen1997/CUDA-refresh/blob/main/MMA/step-14-wmma-128x128-double-buffering/include/kernels.cuh

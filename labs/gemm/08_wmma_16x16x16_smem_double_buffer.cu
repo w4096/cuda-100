@@ -18,7 +18,7 @@ using namespace nvcuda;
 */
 
 template<int WMMA_TILE_SIZE, int WAPRS_GRID_SIZE>
-__global__ void kernel_wmma_smem_double_buffer(int M, int N, int K, float alpha, const half* A, const half* B, float beta, float* C){
+__global__ void wmma_smem_double_buffer_kernel(int M, int N, int K, float alpha, const half* A, const half* B, float beta, float* C){
     __shared__ half As[2][WAPRS_GRID_SIZE][WAPRS_GRID_SIZE][WMMA_TILE_SIZE][WMMA_TILE_SIZE];
     __shared__ half Bs[2][WAPRS_GRID_SIZE][WAPRS_GRID_SIZE][WMMA_TILE_SIZE][WMMA_TILE_SIZE];
 
@@ -134,6 +134,6 @@ extern "C" void gemm_wmma_16x16x16_smem_double_buffer(int M, int N, int K, float
     dim3 gridDim;
     gridDim.x = (N + BLOCK_N -1) / BLOCK_N;
     gridDim.y = (M + BLOCK_M -1) / BLOCK_M;
-    kernel_wmma_smem_double_buffer<WMMA_TILE_SIZE, WAPRS_GRID_SIZE><<<gridDim, blockDim>>>(M, N, K, alpha, A, B, beta, C);
+    wmma_smem_double_buffer_kernel<WMMA_TILE_SIZE, WAPRS_GRID_SIZE><<<gridDim, blockDim>>>(M, N, K, alpha, A, B, beta, C);
     cudaDeviceSynchronize();
 }

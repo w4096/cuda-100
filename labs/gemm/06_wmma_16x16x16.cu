@@ -3,7 +3,7 @@
 using namespace nvcuda;
 
 template<int WMMA_M, int WMMA_N, int WMMA_K>
-__global__ void kernel_wmma(int M, int N, int K, float alpha, const half* A, const half* B, float beta, float* C){
+__global__ void wmma_kernel(int M, int N, int K, float alpha, const half* A, const half* B, float beta, float* C){
     int lda = K;
     int ldb = N;
     int ldc = N;
@@ -77,6 +77,6 @@ extern "C" void gemm_wmma_16x16x16(int M, int N, int K, float alpha, const half*
     gridDim.x = (N + cols_per_block -1) / cols_per_block;
     gridDim.y = (M + rows_per_block -1) / rows_per_block;
 
-    kernel_wmma<WMMA_M, WMMA_N, WMMA_K><<<gridDim, blockDim>>>(M, N, K, alpha, A, B, beta, C);
+    wmma_kernel<WMMA_M, WMMA_N, WMMA_K><<<gridDim, blockDim>>>(M, N, K, alpha, A, B, beta, C);
     cudaDeviceSynchronize();
 }
