@@ -83,13 +83,11 @@ class RunnerBase(ABC):
 
     def compile_options(self) -> list[str]:
         options = []
-        if os.environ.get("CUTLASS_PATH") is not None:
-            cutlass_path = os.environ["CUTLASS_PATH"]
-            include_path = os.path.join(cutlass_path, "include")
-            options.append(f"-I{include_path}")
-
-            util_path = os.path.join(cutlass_path, "tools", "util", "include")
-            options.append(f"-I{util_path}")
+        cutlass_path = os.path.join(os.path.basename(__file__), "..", "3rd", "cutlass")
+        include_path = os.path.join(cutlass_path, "include")
+        options.append(f"-I{include_path}")
+        util_path = os.path.join(cutlass_path, "tools", "util", "include")
+        options.append(f"-I{util_path}")
 
         # add current directory to include path
         options.append(f"-I{self.dir}")
@@ -106,7 +104,7 @@ class RunnerBase(ABC):
 
         return options
 
-    def compile(self):
+    def build_shared_lib(self):
         files = glob.glob(f"{self.dir}/*.cu") + glob.glob(f"{self.dir}/*.cpp")
         # if files is unchanged and soname exists, skip compilation
         if os.path.exists(self.shared_lib_path):
@@ -133,7 +131,7 @@ class RunnerBase(ABC):
 
     def call(self, func_name, arg_types, argv):
         if self.lib is None:
-            self.compile()
+            self.build_shared_lib()
             self.lib = ctypes.CDLL(self.shared_lib_path)
 
         if func_name not in self.funcs:
