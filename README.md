@@ -6,8 +6,8 @@ A collection of CUDA code I write when I was learning CUDA programming.
 
 ```sh
 $ git clone https://github.com/w4096/cuda.git
-$ cd cuda
 
+$ cd cuda
 $ git submodule update --init --recursive
 ```
 

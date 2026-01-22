@@ -83,12 +83,12 @@ class RunnerBase(ABC):
 
     def compile_options(self) -> list[str]:
         options = []
-        cutlass_path = os.path.join(os.path.basename(__file__), "..", "3rd", "cutlass")
+        cutlass_path = os.path.join(os.path.dirname(__file__), "..", "3rd", "cutlass")
         include_path = os.path.join(cutlass_path, "include")
         options.append(f"-I{include_path}")
         util_path = os.path.join(cutlass_path, "tools", "util", "include")
         options.append(f"-I{util_path}")
-
+        
         # add current directory to include path
         options.append(f"-I{self.dir}")
 
@@ -158,8 +158,10 @@ class RunnerBase(ABC):
         signature = self.signature()
         if func_name in signature:
             arg_types = signature[func_name]
-        else:
+        elif "default" in signature:
             arg_types = signature["default"]
+        else:
+            raise ValueError(f"Function {func_name} not found in signature.")
 
         argv_casted = []
         for arg, argtype in zip(argv, arg_types):

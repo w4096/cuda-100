@@ -1,6 +1,3 @@
-## 009 - Softmax
+## Softmax
 
-- Implement softmax kernel.
-- Understand warp level reduction and block level reduction.
-- Implement online softmax.
-- Write a [blog post](https://wangyu.me/posts/cuda/softmax/)
+This is the code for my blog post: [Softmax](https://wangyu.me/posts/cuda/softmax/)
