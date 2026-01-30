@@ -3,10 +3,7 @@ cmake_minimum_required(VERSION 3.18 FATAL_ERROR)
 include(../cmake/common.cmake)
 include(../cmake/cutlass.cmake)
 
-project(gemm LANGUAGES CXX CUDA)
-
-include_directories(..)
-include_directories(/usr/local/cuda/include/cccl/)
+project(mma LANGUAGES CXX CUDA)
 
 set(CMAKE_BUILD_TYPE "Release")
 
@@ -15,4 +12,4 @@ file(GLOB SRC_FILES
     "*.cpp"
 )
 
-add_library(gemm ${SRC_FILES})
+add_executable(mma ${SRC_FILES})

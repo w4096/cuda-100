@@ -7,4 +7,9 @@ include_directories(..)
 
 set(CMAKE_BUILD_TYPE "Release")
 
-add_executable(elementwise elementwise.cu)
+file(GLOB SRC_FILES
+    "*.cu"
+    "*.cpp"
+)
+
+add_executable(elementwise ${SRC_FILES})

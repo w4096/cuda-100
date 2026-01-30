@@ -19,11 +19,14 @@ class Runner(RunnerBase):
 
     def build_test_cases(self):
         dtype = torch.half
-        functions = ["gemm_cutlass", "gemm_naive",
-                     "gemm_tile_16x16", "gemm_tile_32x32",
-                     "gemm_tile_B16x16_T32x32", "gemm_tile_m64n64k16", "gemm_tile_m64n64k16_reg",
-                     "gemm_wmma_16x16x16", "gemm_wmma_16x16x16_smem",
-                     "gemm_wmma_16x16x16_smem_double_buffer"]
+        functions = [
+            "gemm_cutlass",
+            "gemm_naive",
+            "gemm_tile_16x16", "gemm_tile_32x32",
+            "gemm_tile_B16x16_T32x32", "gemm_tile_m64n64k16", "gemm_tile_m64n64k16_reg",
+            "gemm_wmma_16x16x16", "gemm_wmma_16x16x16_smem",
+            "gemm_wmma_16x16x16_smem_double_buffer",
+        ]
         
         for M, N, K in [(4096, 4096, 2048)]:
             A = torch.empty(M, K, device="cuda", dtype=dtype).uniform_(-0.1, 0.1)

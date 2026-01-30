@@ -1,77 +1,167 @@
-#include <cute/layout.hpp>
 #include <cute/tensor.hpp>
 
-template <class TensorS, class TensorD, class Tiled_Copy>
-__global__ void copy_kernel_vectorized(TensorS S, TensorD D, Tiled_Copy tiled_copy)
-{
-    using namespace cute;
+using namespace cute;
 
-    // Slice the tensors to obtain a view into each tile.
-    Tensor tile_S = S(make_coord(_, _), blockIdx.x, blockIdx.y);  // (BlockShape_M, BlockShape_N)
-    Tensor tile_D = D(make_coord(_, _), blockIdx.x, blockIdx.y);  // (BlockShape_M, BlockShape_N)
+__global__ void copy_kernel(int* dst, const int* src, size_t N) {
+    size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
 
-    // Construct a Tensor corresponding to each thread's slice.
-    ThrCopy thr_copy = tiled_copy.get_thread_slice(threadIdx.x);
-
-    Tensor thr_tile_S = thr_copy.partition_S(tile_S);             // (CopyOp, CopyM, CopyN)
-    Tensor thr_tile_D = thr_copy.partition_D(tile_D);             // (CopyOp, CopyM, CopyN)
-
-    // Construct a register-backed Tensor with the same shape as each thread's partition
-    // Use make_fragment because the first mode is the instruction-local mode
-    Tensor fragment = make_fragment_like(thr_tile_D);             // (CopyOp, CopyM, CopyN)
-
-    // Copy from GMEM to RMEM and from RMEM to GMEM
-    copy(tiled_copy, thr_tile_S, fragment);
-    copy(tiled_copy, fragment, thr_tile_D);
+    for (int i = 0; i < N; i += gridDim.x * blockDim.x) {
+        size_t index = idx + i;
+        if (index < N) {
+            dst[index] = src[index];
+        }
+    }
 }
 
 
-int main() {
-    using namespace cute;
-    using Element = float;
+__global__ void copy_0(const int* src, size_t N) {
+    __shared__ int smem[512];
+    const int *data = src + blockIdx.x * 512;
 
-    auto shape = make_shape(256, 512);
-
-    Element* h_src = new Element[size(shape)];
-    for (size_t i = 0; i < size(shape); ++i) {
-        h_src[i] = static_cast<Element>(i);
+    for (int i = 0; i < N; i += blockDim.x) {
+        size_t index = i + threadIdx.x;
+        if (index < N) {
+            smem[index] = data[index];
+        }
     }
 
-    Element* src;
-    cudaMalloc(&src, sizeof(Element) * size(shape));
-    cudaMemcpy(src, h_src, sizeof(Element) * size(shape), cudaMemcpyHostToDevice);
+    __syncthreads();
 
-    Element* dst;
-    cudaMalloc(&dst, sizeof(Element) * size(shape));
+}
 
 
-    Tensor tensor_S = make_tensor(make_gmem_ptr(src), make_layout(shape));
-    Tensor tensor_D = make_tensor(make_gmem_ptr(dst), make_layout(shape));
+__global__ void copy_1(const int* src, size_t N) {
+    int A[24];
 
-    auto block_shape = make_shape(Int<128>{}, Int<64>{});
-
-    Tensor tiled_tensor_S = tiled_divide(tensor_S, block_shape);      // ((M, N), m', n')
-    Tensor tiled_tensor_D = tiled_divide(tensor_D, block_shape);      // ((M, N), m', n')
-
-    Layout thr_layout = make_layout(make_shape(Int<32>{}, Int<8>{}));  // (32,8) -> thr_idx
-    Layout val_layout = make_layout(make_shape(Int<4>{}, Int<1>{}));   // (4,1) -> val_idx
-
-    using CopyOp = UniversalCopy<uint_byte_t<sizeof(Element) * size(val_layout)>>;
-
-    using Atom = Copy_Atom<CopyOp, Element>;
-
-    TiledCopy tiled_copy = make_tiled_copy(Atom{},             // Access strategy
-                                         thr_layout,         // thread layout (e.g. 32x4 Col-Major)
-                                         val_layout);
+    Tensor a = make_tensor(&A[0], make_layout(make_shape(4,6)));
+    // ... fill A ...
 
 
-    dim3 gridDim (size<1>(tiled_tensor_D), size<2>(tiled_tensor_D));   // Grid shape corresponds to modes m' and n'
-    dim3 blockDim(size(thr_layout));
+    int B[24];
+    Tensor b = make_tensor(&B[0], make_layout(make_shape(24)));
+
+    // Copy from a to b
+    copy(a, b);
 
 
-    copy_kernel_vectorized<<< gridDim, blockDim >>>(
-        tiled_tensor_S,
-        tiled_tensor_D,
-        tiled_copy);
+}
 
+
+__global__ void copy_g2s_s2g(int* dst, const int* src, size_t N) {
+    __shared__ int smem[512];
+
+    Layout layout = make_layout(make_shape(blockDim.x, 512 / blockDim.x), make_stride(1, blockDim.x));
+
+    Tensor global_src_tensor = make_tensor(make_gmem_ptr<int>(src + blockIdx.x * 512), layout);
+    Tensor gloabl_dst_tensor = make_tensor(make_gmem_ptr<int>(dst + blockIdx.x * 512), layout);
+    Tensor smem_tensor = make_tensor(make_smem_ptr<int>(smem), layout);
+
+    Tensor thread_src = global_src_tensor(threadIdx.x, _);
+    Tensor thread_smem = smem_tensor(threadIdx.x, _);
+    Tensor thread_dst = gloabl_dst_tensor(threadIdx.x, _);
+
+    if (cute::thread0()) {
+        print(global_src_tensor.layout());
+        print(thread_src.layout());
+    }
+
+    copy(thread_src, thread_smem);
+    
+    __syncthreads();
+
+    copy(thread_smem, thread_dst);
+}
+
+template <int kTileM, int kTileN>
+__global__ void copy_g2s_s2g_2(int* dst, const int* input, size_t N) {
+  int tid = threadIdx.x;
+  
+  __shared__ int shm[kTileM * kTileN];
+  
+  Tensor g_input_tile = make_tensor(make_gmem_ptr((int *)input), 
+                               make_shape(Int<kTileM>{}, Int<kTileN>{}),
+                               make_stride(Int<kTileN>{}, Int<1>{})); 
+                               // (kTileM, kTileN)
+                               
+  Tensor s_tensor = make_tensor(make_smem_ptr((int *)shm), 
+                               make_shape(Int<kTileM>{}, Int<kTileN>{}),
+                               make_stride(Int<kTileN>{}, Int<1>{}));
+                               // (kTileM, kTileN)
+  
+  using g2s_copy_op = UniversalCopy<int>;
+  using g2s_copy_traits = Copy_Traits<g2s_copy_op>;
+  using g2s_copy_atom = Copy_Atom<g2s_copy_traits, int>;
+
+  Layout thr_layout = make_layout(make_shape(Int<4>{}, Int<8>{}),
+                                  make_stride(Int<8>{}, Int<1>{}));
+  Layout val_layout = make_layout(make_shape(Int<2>{}));
+
+  auto tiled_copy_g2s = make_tiled_copy(g2s_copy_atom{}, thr_layout, val_layout);
+
+  if (thread0()) {
+    print(tiled_copy_g2s);
+    print_latex(tiled_copy_g2s);
+    printf("\n");
+  }
+
+  auto thr_copy_g2s = tiled_copy_g2s.get_slice(tid);
+  auto tgA_g2s = thr_copy_g2s.partition_S(g_input_tile);
+  auto tsA_g2s = thr_copy_g2s.partition_D(s_tensor);
+
+  if (thread0()) {
+    print(thr_copy_g2s);
+    print(tgA_g2s); printf("\n");
+    print(tsA_g2s); printf("\n");
+  }
+
+  copy(tiled_copy_g2s, tgA_g2s, tsA_g2s);
+  
+  __syncthreads();
+
+  for (int i = 0; i < N; i += blockDim.x) {
+      size_t index = i + tid;
+      if (index < N) {
+          dst[blockIdx.x * kTileM * kTileN + index] = shm[index];
+      }
+  }
+}
+
+void copy_example() {
+    using namespace cute;
+
+    std::array<int, 16> data_a;
+    for (int i = 0; i < 16; i++) {
+        data_a[i] = i;
+    }
+
+    Layout<Shape<_4, _4>, Stride<_4, _1>> layout;
+    Tensor A = make_tensor(make_gmem_ptr<int>(data_a.data()), layout);
+    print_tensor(A);
+
+    Tensor B = make_tensor<int>(layout);
+
+    copy(A, B);
+
+    print_tensor(B);
+}
+
+
+
+int main(int argc, char** argv) {
+    int *src;
+    int *dst;
+    cudaMallocManaged(&src, 1024 * sizeof(int));
+    cudaMallocManaged(&dst, 1024 * sizeof(int));
+    for (int i = 0; i < 1024; i++) {
+        src[i] = i;
+        dst[i] = 0;
+    }
+    
+    // copy_g2s_s2g<<<2, 32>>>(dst, src, 1024);
+    copy_g2s_s2g_2<8, 64><<<1, 32>>>(dst, src, 1024);
+    cudaDeviceSynchronize();
+
+    Tensor dst_tensor = make_tensor(make_gmem_ptr<int>(dst), make_layout(make_shape(Int<8>{}, Int<64>{}), make_stride(Int<64>{}, Int<1>{})));
+    print_tensor(dst_tensor);
+    printf("\n");
 }

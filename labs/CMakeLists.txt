@@ -1,7 +1,7 @@
 add_subdirectory(001)
 add_subdirectory(002)
 add_subdirectory(004)
-add_subdirectory(005)
+add_subdirectory(elementwise)
 add_subdirectory(006)
 add_subdirectory(008)
 add_subdirectory(009)

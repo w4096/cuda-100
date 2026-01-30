@@ -5,8 +5,8 @@
 
 using namespace cute;
 
-void dome_2d_layout_example() {
-    printf("\n2D Layout example:\n");
+void layout_2d_example() {
+    printf("2D Layout example:\n");
 
 
     Layout<Shape<_2, _4>, Stride<_4, _1>> layout;
@@ -28,7 +28,7 @@ void dome_2d_layout_example() {
     print_tensor(a_t);
 }
 
-void dome_4d_layout_example() {
+void layout_4d_example() {
     printf("\n2D Layout example:\n");
 
     constexpr int N = 120;
@@ -56,10 +56,13 @@ void slice_example() {
         data[i] = i;
     }
 
-    using shape = Shape<Shape<_2, _3>, Shape<_2, _3>>;
-    using stride = Stride<Stride<Int<18>, _3>, Stride<Int<9>, _1>>;
+    using shape = Shape<Shape<_2, _2>, Shape<_3, _3>>;
+    using stride = Stride<Stride<_3, _6>, Stride<_1, _12>>;
 
     Tensor t = make_tensor(&data[0], Layout<shape, stride>{});
+
+    print_tensor(t);
+
 
     printf("\ncoord: (_, _), (0, 0):\n");
     print_tensor(t(make_coord(_, _), make_coord(0, 0)));
@@ -80,18 +83,7 @@ void slice_example() {
     print_tensor(t(make_coord(0, _), make_coord(1, 1)));
 }
 
-void product_example() {
-    printf("\nProduct Layout example:\n");
-
-    using layout1 = Layout<Shape<_2, _3>, Stride<_3, _1>>;
-    using layout2 = Layout<Shape<_4, _5>, Stride<_5, _1>>;
-
-    using prod_layout = decltype(logical_product(layout1{}, layout2{}));
-    print_layout(prod_layout{});
-}
-
 int main() {
     slice_example();
-
     return 0;
 }
