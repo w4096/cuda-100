@@ -1,7 +1,4 @@
-cmake_minimum_required(VERSION 3.18 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.18)
 
-include(../labs/cmake/common.cmake)
-
-# for CLion cuda language support
-file(GLOB_RECURSE  KERNEL_SOURCES "./*/*.cu" "./*/*.cuh")
+file(GLOB_RECURSE KERNEL_SOURCES "./*/*.cu" "./*/*.cuh")
 add_library(kernels STATIC ${KERNEL_SOURCES})
