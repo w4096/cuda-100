@@ -1,5 +1,4 @@
 #include <cassert>
-#include <cmath>
 #include <cstdio>
 #include <cuda_fp16.h>
 #include <cuda_runtime.h>
@@ -66,14 +65,10 @@ __global__ void ldmatrix_kernel() {
 
     __syncthreads();
 
-
-
     if (threadIdx.x == 0) {
         printf("Shared memory matrix A:\n");
         print_matrix(smem_a);
     }
-
-
     uint32_t a_regs[4];
 
     int row = threadIdx.x % 16;

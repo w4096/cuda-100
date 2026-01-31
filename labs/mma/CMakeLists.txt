@@ -1,7 +1,6 @@
 cmake_minimum_required(VERSION 3.18 FATAL_ERROR)
 
 include(../cmake/common.cmake)
-include(../cmake/cutlass.cmake)
 
 project(mma LANGUAGES CXX CUDA)
 

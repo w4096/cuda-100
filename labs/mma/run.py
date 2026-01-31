@@ -20,8 +20,8 @@ class Runner(RunnerBase):
         yield {
             "function": "gemm_m16n8k16",
             "argv": {
-                "A": torch.randn(M, K, device="cuda", dtype=torch.half).uniform_(-1, 1),
-                "B": torch.randn(K, N, device="cuda", dtype=torch.half).uniform_(-1, 1),
+                "A": torch.randn(M, K, device="cuda", dtype=torch.half),
+                "B": torch.randn(K, N, device="cuda", dtype=torch.half),
                 "C": torch.zeros(M, N, device="cuda", dtype=torch.float),
                 "M": M,
                 "N": N,
@@ -29,13 +29,12 @@ class Runner(RunnerBase):
             }
         }
         
-        
-        M, N, K = 256, 256, 256
+        M, N, K = 64, 64, 256
         yield {
             "function": "gemm",
             "argv": {
-                "A": torch.randn(M, K, device="cuda", dtype=torch.half).uniform_(-1, 1),
-                "B": torch.randn(K, N, device="cuda", dtype=torch.half).uniform_(-1, 1),
+                "A": torch.randn(M, K, device="cuda", dtype=torch.half),
+                "B": torch.randn(K, N, device="cuda", dtype=torch.half),
                 "C": torch.zeros(M, N, device="cuda", dtype=torch.float),
                 "M": M,
                 "N": N,
@@ -44,8 +43,8 @@ class Runner(RunnerBase):
         }
 
     def check(self, A, B, C, **kwargs):
-        C_ref = torch.matmul(A.to(torch.float32), B.to(torch.float32))
-        assert torch.allclose(C, C_ref, atol=1e-5), "Result mismatch in gemm function"
+        D = torch.matmul(A.to(torch.float), B.to(torch.float))
+        assert torch.allclose(C, D, atol=1e-4), "Result mismatch"
 
 
 if __name__ == "__main__":

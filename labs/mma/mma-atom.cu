@@ -1,9 +1,8 @@
 #include <cassert>
 #include <cmath>
-#include <cstdio>
+#include <cstdint>
 #include <cuda_fp16.h>
 #include <cuda_runtime.h>
-#include <cute/atom/mma_traits.hpp>
 
 
 struct SM80_16x8x16_F32F16F16F32_TN
@@ -38,7 +37,7 @@ __global__ void mma_16x8x16_f32f16f16f32_kernel(const half* a, const half* b, fl
     __shared__  half smem_b[16][8];
     __shared__ float smem_c[16][8];
 
-    int lane = threadIdx.x;
+    const int lane = threadIdx.x;
     for (int i = lane; i < 16 * 16; i += 32) {
         smem_a[i / 16][i % 16] = a[i];
     }
@@ -84,6 +83,8 @@ __global__ void mma_16x8x16_f32f16f16f32_kernel(const half* a, const half* b, fl
     smem_c[c_row + 8][c_col + 1] = c_regs[3];
 
     __syncthreads();
+
+    // store back to global memory
     for (int i = lane; i < 16 * 8; i += 32) {
         c[i] = smem_c[i / 8][i % 8];
     }

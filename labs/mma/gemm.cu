@@ -3,7 +3,6 @@
 #include <cstdio>
 #include <cuda_fp16.h>
 #include <cuda_runtime.h>
-#include <cute/atom/mma_traits.hpp>
 #include <cuda.h>
 #include <random>
 
@@ -58,8 +57,8 @@ __global__ void mma_gemm_kernel(const half* a, const half* b, float* c, int M, i
     __shared__  half smem_b[kBlockK][kBlockN];
     __shared__ float smem_c[kBlockM][kBlockN];
 
-    int wrap_id = threadIdx.x / 32;
-    int lane = threadIdx.x % 32;
+    const int wrap_id = threadIdx.x / 32;
+    const int lane = threadIdx.x % 32;
 
     // initialize shared memory C
     for (int i = 0; i < kBlockM * kBlockN; i += blockDim.x * blockDim.y) {
@@ -103,22 +102,22 @@ __global__ void mma_gemm_kernel(const half* a, const half* b, float* c, int M, i
         __syncthreads();
 
         // compute MMA
-        int mma_m = kBlockM / 16;
-        int mma_n = kBlockN / 8;
-        int mma_k = kBlockK / 16;
+        constexpr int m_fragments = kBlockM / 16;
+        constexpr int n_fragments = kBlockN / 8;
 
         // loop over m x n small 16x8 MMA tiles
-        for (int idx = wrap_id; idx < mma_m * mma_n; idx += kWarps) {
-            int m = idx / mma_n;
-            int n = idx % mma_n;
+        for (int idx = wrap_id; idx < m_fragments * n_fragments; idx += kWarps) {
+            const int m = idx / n_fragments;
+            const int n = idx % n_fragments;
 
             // the left top corner of C tile in shared memory
-            int row = m * 16;
-            int col = n * 8;
+            const int row = m * 16;
+            const int col = n * 8;
 
             float c_regs[4] = {0.0f};
 
-            for (int l = 0; l < mma_k; ++l) {
+            constexpr int k_fragments = kBlockK / 16;
+            for (int l = 0; l < k_fragments; ++l) {
                 // load A and B from shared memory
                 uint32_t a_regs[4];
                 uint32_t b_regs[2];
@@ -127,14 +126,14 @@ __global__ void mma_gemm_kernel(const half* a, const half* b, float* c, int M, i
                 int a_row = row + (lane % 16);
                 int a_col = l * 16 + (lane / 16) * 8;
 
-                uint32_t* addr = reinterpret_cast<uint32_t*>(&smem_a[a_row][a_col]);
-                SM75_U16x8_LDSM::copy(addr, a_regs[0], a_regs[1], a_regs[2], a_regs[3]);
+                const auto a_addr = reinterpret_cast<uint32_t*>(&smem_a[a_row][a_col]);
+                SM75_U16x8_LDSM::copy(a_addr, a_regs[0], a_regs[1], a_regs[2], a_regs[3]);
 
                 // the address within 16x8 tile of B matrix
                 int b_row = l * 16 + lane;
                 int b_col = col;
-                uint32_t* baddr = reinterpret_cast<uint32_t*>(&smem_b[b_row][b_col]);
-                SM75_U16x4_LDSM_T::copy(baddr, b_regs[0], b_regs[1]);
+                const auto b_addr = reinterpret_cast<uint32_t*>(&smem_b[b_row][b_col]);
+                SM75_U16x4_LDSM_T::copy(b_addr, b_regs[0], b_regs[1]);
 
                 // Perform MMA operation
                 SM80_16x8x16_F32F16F16F32_TN::fma(
@@ -145,6 +144,7 @@ __global__ void mma_gemm_kernel(const half* a, const half* b, float* c, int M, i
                 );
             }
 
+            // store C registers to shared memory
             const int c_col = col + (lane % 4) * 2;
             smem_c[row + lane / 4][c_col + 0] += c_regs[0];
             smem_c[row + lane / 4][c_col + 1] += c_regs[1];
@@ -153,9 +153,9 @@ __global__ void mma_gemm_kernel(const half* a, const half* b, float* c, int M, i
         }
     }
 
-    // write back C from shared memory to global memory
     __syncthreads();
-    
+
+    // write back C from shared memory to global memory
     for (int i = 0; i < kBlockM * kBlockN; i += blockDim.x * blockDim.y) {
         int idx = i + threadIdx.x;
         int row = idx / kBlockN;
